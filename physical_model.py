@@ -13,10 +13,26 @@ theta_c = 0.00091
 w_m = 0.000125
 E_p0 = 1.004
 E_n0 = -0.26
-
+n_d = 2.5
+C_V0 = 2000
+C_Hp0 = 5000
+C_Hn0 = 3000
+C_H2Op0 = 47500
 
 # 定义物理模型类
 class PhysicalModel():
+
+    def get_con(SoC, C_V0, C_Hp0, C_Hn0, C_H2Op0):
+        C_2 = C_V0*SoC
+        C_3 = C_V0*(1 - SoC)
+        C_4 = C_V0*(1 - SoC)
+        C_5 = C_V0*SoC
+        C_Hn = C_Hn0 + C_V0*SoC
+        C_Hp = C_Hp0 + C_V0*SoC
+        C_H2Op = C_H2Op0 - (1 + n_d)*C_V0*SoC
+        return C_2, C_3, C_4, C_5, C_Hn, C_Hp, C_H2Op
+
+
     def E_con(T, I, Q, C_2, C_3, C_4, C_5):
         if I > 0:
             E_con_p = -R*T/F*math.log(1-I/(1.43*math.pow(10, -4)*F*math.pow(Q/A_e, 0.4)*C_4))

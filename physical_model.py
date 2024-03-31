@@ -36,13 +36,13 @@ def E_con(T, I, Q, C_2, C_3, C_4, C_5):
 
     for i in range(len(I)):
         if I[i] > 0:
-            E_con_p.append(-R*T[i]/F*math.log(1-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_4[i])))
-            E_con_n.append(-R*T[i]/F*math.log(1-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_3[i])))
+            E_con_p.append(-R*T[i]/F*(-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_4[i])))
+            E_con_n.append(-R*T[i]/F*(-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_3[i])))
         
 
         if I[i] < 0:
-            E_con_p.append(-R*T[i]/F*math.log(1-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_5[i])))
-            E_con_n.append(-R*T[i]/F*math.log(1-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_2[i])))
+            E_con_p.append(-R*T[i]/F*(-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_5[i])))
+            E_con_n.append(-R*T[i]/F*(-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_2[i])))
     
     E_con_p = np.array(E_con_p)
     E_con_n = np.array(E_con_n)

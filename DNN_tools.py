@@ -37,13 +37,27 @@ def test_scale(test):
     return scaler, test_scaled
 
 
-def invert_scale(scaler: object, X: object, value: object) -> object:
+def test_invert_scale(scaler: object, X: object, value: object) -> object:
     new_row = [x for x in X] + [value]
     array = np.array(new_row)
     array = array.reshape(1, len(array))
     inverted = scaler.inverse_transform(array) # 去标准化
     inverted = torch.Tensor(inverted)
-    return inverted[0, 0],inverted[0, 1],inverted[0, 2],inverted[0, 3],inverted[0, 4]
+    return inverted[0, -1]
+
+
+def train_invert_scale(scaler: object, X: object, value: object) -> object:
+    new_row = [x for x in X] + [value]
+    array = np.array(new_row)
+    output = []
+    for i in range(array.shape[1]):
+        data = array[:, i]
+        data = data.reshape(1, len(array))
+        inverted = scaler.inverse_transform(data).reshape(-1, ) # 去标准化
+        output.append(inverted)
+    output = np.array(output)
+    output = torch.Tensor(output)
+    return output[:, 0], output[:, 1], output[:, 2], output[:, 3], output[:, 4], output[:, 5]
 
 
 class DataPrepare(Dataset):
@@ -51,7 +65,7 @@ class DataPrepare(Dataset):
     def __init__(self, train):
         self.len = train.shape[0]
         x_set = train[:, 0:-1]
-        x_set = x_set.reshape(x_set.shape[0], 1, 6)
+        x_set = x_set.reshape(x_set.shape[0], 1, 5)
         # 数据类型转为 torch 变量
         self.x_data = torch.from_numpy(x_set)
         self.y_data = torch.from_numpy(train[:, [-1]])

@@ -23,17 +23,17 @@ def create_dataset(excel_index):
 
 
 def train_scale(train):
-    scaler = MinMaxScaler(feature_range=(-1, 1))
+    scaler = MinMaxScaler(feature_range=(0, 1))
     scaler = scaler.fit(train)
-    train_scaled = scaler.transform(train)
+    train_scaled = scaler.fit_transform(train)
     return scaler, train_scaled
 
 
 def test_scale(test):
-    scaler = MinMaxScaler(feature_range=(-1, 1))
+    scaler = MinMaxScaler(feature_range=(0, 1))
     scaler = scaler.fit(test)
     test = test.reshape(test.shape[0], test.shape[1])
-    test_scaled = scaler.transform(test)
+    test_scaled = scaler.fit_transform(test)
     return scaler, test_scaled
 
 
@@ -47,12 +47,12 @@ def test_invert_scale(scaler: object, X: object, value: object) -> object:
 
 
 def train_invert_scale(scaler: object, X: object, value: object) -> object:
-    new_row = [x for x in X] + [value]
+    new_row = np.concatenate((X, value), axis=1)
     array = np.array(new_row)
     output = []
-    for i in range(array.shape[1]):
-        data = array[:, i]
-        data = data.reshape(1, len(array))
+    for i in range(array.shape[0]):
+        data = array[i, :]
+        data = data.reshape(1, len(data))
         inverted = scaler.inverse_transform(data).reshape(-1, ) # 去标准化
         output.append(inverted)
     output = np.array(output)

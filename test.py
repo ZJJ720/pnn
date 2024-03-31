@@ -103,14 +103,13 @@ class DNN(nn.Module):
 
 
 # 创建模型实例
-models = []
-for i in range(4):
-    models.append(DNN().to(device))
+model = DNN().to(device)
+
 
 # 定义损失函数和优化器
 loss_function = nn.MSELoss()
 loss_function = loss_function.to(device)
-optimizer = torch.optim.Adam([{'params': net.parameters()} for net in models], lr=learning_rate)  # Adam 优化器
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)  # Adam 优化器
 scheduler = StepLR(optimizer, step_size=step_size, gamma=gamma)
 
 # 训练模型
@@ -131,11 +130,22 @@ for epoch in tqdm(range(num_epochs)):
         labels = labels.to(torch.float32)
 
         # 前向传播
-        outputs = [net(inputs) for net in models]
-
+        outputs = model(inputs)
+        outputs = outputs.reshape(batch_size, 4)
+        S = []
+        k_p = []
+        k_n = []
+        theta_e = []
         # 计算端电压
-        S, k_p, k_n, theta_e = S0 * outputs[0], k_p0 * outputs[1], k_n0 * outputs[2], theta_e0 * outputs[3]
-        T, I, SoC, Q, C_V0, U = train_invert_scale(scaler, inputs.reshape(5, -1).cpu().numpy(), labels.reshape(-1, ).cpu().detach().numpy())
+        for i in range(batch_size):
+            S.append(S0 * math.exp(outputs[i, 0]))
+            k_p.append(k_p0 * math.exp(outputs[i, 1]))
+            k_n.append(k_n0 * math.exp(outputs[i, 2]))
+            theta_e.append(theta_e0 * math.exp(outputs[i, 3]))
+
+        S, k_p, k_n, theta_e = np.array(S), np.array(k_p), np.array(k_n), np.array(theta_e)
+        S, k_p, k_n, theta_e = torch.tensor(S), torch.tensor(k_p), torch.tensor(k_n), torch.tensor(theta_e)
+        T, I, SoC, Q, C_V0, U = train_invert_scale(scaler, inputs.reshape(-1, 5).cpu().numpy(), labels.reshape(-1, 1).cpu().detach().numpy())
         C_2, C_3, C_4, C_5, C_Hn, C_Hp, C_H2Op = get_con(SoC, C_V0, C_Hp0, C_Hn0, C_H2Op0)
         e_con = E_con(T, I, Q, C_2, C_3, C_4, C_5)
         e_act = E_act(T, I, S, k_p, k_n, C_2, C_3, C_4, C_5)
@@ -146,26 +156,23 @@ for epoch in tqdm(range(num_epochs)):
 
         # 计算损失
         loss = loss_function(U, e_cell)
+        loss.requires_grad = True
         train_loss.append(loss.cpu().item())
 
         # 更新梯度
         loss.backward()
 
         # 优化参数
-        for net in models:
-            optimizer.step()  # 更新每个网络的权重
+        optimizer.step()  # 更新每个网络的权重
 
     scheduler.step()
 
-    best_model = []
     if epoch > min_epochs and loss < min_loss:
         min_val_loss = loss
-        for i in range(4):
-            best_model[i] = copy.deepcopy(models[i])
+        best_model = copy.deepcopy(model)
 
     print('epoch {} train_loss {:.8f}'.format(epoch, np.mean(train_loss)))
+    model.train()
 
-    for i in range(4):
-        models[i].train()
-        torch.save(models[i], f'./result/DNN_models_{i}.pth')
+    torch.save(model, f'./result/DNN_model.pth')
 

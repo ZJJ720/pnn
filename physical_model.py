@@ -30,24 +30,19 @@ def get_con(SoC, C_V0, C_Hp0, C_Hn0, C_H2Op0):
 
 
 def E_con(T, I, Q, C_2, C_3, C_4, C_5):
-
-    E_con_p = []
-    E_con_n = []
+    E_con_p = torch.empty(len(I))
+    E_con_n = torch.empty(len(I))
 
     for i in range(len(I)):
         if I[i] > 0:
-            E_con_p.append(-R*T[i]/F*(-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_4[i])))
-            E_con_n.append(-R*T[i]/F*(-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_3[i])))
+            E_con_p[i] = -R*T[i]/F*(-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_4[i]))
+            E_con_n[i] = -R*T[i]/F*(-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_3[i]))
         
 
         if I[i] < 0:
-            E_con_p.append(-R*T[i]/F*(-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_5[i])))
-            E_con_n.append(-R*T[i]/F*(-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_2[i])))
-    
-    E_con_p = np.array(E_con_p)
-    E_con_n = np.array(E_con_n)
-    E_con_p = torch.tensor(E_con_p)
-    E_con_n = torch.tensor(E_con_n)
+            E_con_p[i] = -R*T[i]/F*(-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_5[i]))
+            E_con_n[i] = -R*T[i]/F*(-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_2[i]))
+
     
     E_con = E_con_p + E_con_n
     
@@ -55,46 +50,21 @@ def E_con(T, I, Q, C_2, C_3, C_4, C_5):
 
 
 def E_act(T, I, S, k_p, k_n, C_2, C_3, C_4, C_5):
-    
-    E_act = []
-    for i in range(len(I)):
-        E_act.append(R*T[i]*2/F*(math.asinh(I[i]/S[i]/V_e/2/F/k_p[i]/math.sqrt(C_4[i]*C_5[i])) 
-                                 + math.asinh(I[i]/S[i]/V_e/2/F/k_n[i]/math.sqrt(C_2[i]*C_3[i]))))
-    
 
-    E_act = np.array(E_act)
-    E_act = torch.tensor(E_act)
+    E_act = R*T*2/F*(torch.asinh(I/S/V_e/2/F/k_p/torch.sqrt(C_4*C_5)) + torch.asinh(I/S/V_e/2/F/k_n/torch.sqrt(C_2*C_3)))
+
     return E_act
 
 
 def E_ohm(theta_e, T, I):
-    theta_m = []
-    E_ohm = []
-    for i in range(len(I)):
-        theta_m.append((0.5139*L - 0.326)*math.exp(1268*(1/303 - 1/T[i])))
+    theta_m = (0.5139*L - 0.326)*torch.exp(1268*(1/303 - 1/T))
 
-    
-    theta_m = np.array(theta_m)
-    theta_m = torch.tensor(theta_m)
-        
-    for i in range(len(I)):
-        E_ohm.append((2*w_c/theta_c + 2*w_e/theta_e[i] + w_m/theta_m[i])*I[i]/A_e)
-    
-
-    E_ohm = np.array(E_ohm)
-    E_ohm = torch.tensor(E_ohm)
+    E_ohm = (2*w_c/theta_c + 2*w_e/theta_e + w_m/theta_m)*I/A_e
 
     return E_ohm
 
 
 def E_ocv(T, C_2, C_3, C_4, C_5, C_Hp, C_Hn, C_H2Op):
-
-    E_ocv = []
-    for i in range(len(T)):
-        E_ocv.append(E_p0 - E_n0 + R*T[i]/F*math.log((C_2[i]*C_5[i]*C_Hp[i]*math.pow(C_Hp[i], 2))/(C_3[i]*C_4[i]*C_Hn[i]*C_H2Op[i])))
-
-    
-    E_ocv = np.array(E_ocv)
-    E_ocv = torch.tensor(E_ocv)
+    E_ocv = E_p0 - E_n0 + R*T/F*torch.log((C_2*C_5*C_Hp*torch.pow(C_Hp, 2))/(C_3*C_4*C_Hn*C_H2Op))
 
     return E_ocv

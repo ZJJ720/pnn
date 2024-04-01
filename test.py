@@ -102,12 +102,39 @@ class DNN(nn.Module):
         return output
 
 
+# 自定义损失函数
+class CustomLoss(nn.Module):
+    def __init__(self):
+        super(CustomLoss, self).__init__()
+
+    def forward(self, inputs, preds, labels):
+        # 自定义损失逻辑
+        S = preds[:, 0]
+        k_p = preds[:, 1]
+        k_n = preds[:, 2]
+        theta_e = preds[:, 3]
+        S = S0 * torch.exp(S).cpu()
+        k_p = k_p0 * torch.exp(k_p).cpu()
+        k_n = k_n0 * torch.exp(k_n).cpu()
+        theta_e = theta_e0 * torch.exp(theta_e).cpu()
+        T, I, SoC, Q, C_V0, U = train_invert_scale(scaler, inputs.view(-1, 5).cpu().numpy(), labels.view(-1, 1).cpu().detach().numpy())
+        C_2, C_3, C_4, C_5, C_Hn, C_Hp, C_H2Op = get_con(SoC, C_V0, C_Hp0, C_Hn0, C_H2Op0)
+        e_con = E_con(T, I, Q, C_2, C_3, C_4, C_5)
+        e_act = E_act(T, I, S, k_p, k_n, C_2, C_3, C_4, C_5)
+        e_ohm = E_ohm(theta_e, T, I)
+        e_ocv = E_ocv(T, C_2, C_3, C_4, C_5, C_Hp, C_Hn, C_H2Op)
+        e_cell = e_con + e_act + e_ohm + e_ocv
+        loss = torch.mean((e_cell - U) ** 2)
+        return loss
+
+
+
 # 创建模型实例
 model = DNN().to(device)
 
 
 # 定义损失函数和优化器
-loss_function = nn.MSELoss()
+loss_function = CustomLoss()
 loss_function = loss_function.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)  # Adam 优化器
 scheduler = StepLR(optimizer, step_size=step_size, gamma=gamma)
@@ -122,41 +149,18 @@ for epoch in tqdm(range(num_epochs)):
     for i, data in enumerate(train_loader, 0):
         inputs, labels = data
         inputs, labels = inputs.to(device), labels.to(device)
-        inputs = inputs.reshape(batch_size, 1, 5)
+        inputs = inputs.reshape(batch_size, 5)
 
-        # 梯度清零
+       # 梯度清零
         optimizer.zero_grad()
         inputs = inputs.to(torch.float32)
         labels = labels.to(torch.float32)
 
         # 前向传播
-        outputs = model(inputs)
-        outputs = outputs.reshape(batch_size, 4)
-        S = []
-        k_p = []
-        k_n = []
-        theta_e = []
-        # 计算端电压
-        for i in range(batch_size):
-            S.append(S0 * math.exp(outputs[i, 0]))
-            k_p.append(k_p0 * math.exp(outputs[i, 1]))
-            k_n.append(k_n0 * math.exp(outputs[i, 2]))
-            theta_e.append(theta_e0 * math.exp(outputs[i, 3]))
-
-        S, k_p, k_n, theta_e = np.array(S), np.array(k_p), np.array(k_n), np.array(theta_e)
-        S, k_p, k_n, theta_e = torch.tensor(S), torch.tensor(k_p), torch.tensor(k_n), torch.tensor(theta_e)
-        T, I, SoC, Q, C_V0, U = train_invert_scale(scaler, inputs.reshape(-1, 5).cpu().numpy(), labels.reshape(-1, 1).cpu().detach().numpy())
-        C_2, C_3, C_4, C_5, C_Hn, C_Hp, C_H2Op = get_con(SoC, C_V0, C_Hp0, C_Hn0, C_H2Op0)
-        e_con = E_con(T, I, Q, C_2, C_3, C_4, C_5)
-        e_act = E_act(T, I, S, k_p, k_n, C_2, C_3, C_4, C_5)
-        e_ohm = E_ohm(theta_e, T, I)
-        e_ocv = E_ocv(T, C_2, C_3, C_4, C_5, C_Hp, C_Hn, C_H2Op)
-        e_cell = e_con + e_act + e_ohm + e_ocv
-        torch.Tensor(e_cell)
+        preds = model(inputs)
 
         # 计算损失
-        loss = loss_function(U, e_cell)
-        loss.requires_grad = True
+        loss = loss_function(inputs, preds, labels)
         train_loss.append(loss.cpu().item())
 
         # 更新梯度
@@ -171,7 +175,7 @@ for epoch in tqdm(range(num_epochs)):
         min_val_loss = loss
         best_model = copy.deepcopy(model)
 
-    print('epoch {} train_loss {:.8f}'.format(epoch, np.mean(train_loss)))
+    print('epoch {} train_loss {:.8f}'.format(epoch, train_loss[50]))
     model.train()
 
     torch.save(model, f'./result/DNN_model.pth')

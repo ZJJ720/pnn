@@ -25,7 +25,7 @@ setup_seed(27)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-train_length  = 0.7
+train_length  = 1
 batch_size    = 10
 num_epochs    = 100
 step_size     = 5 # 学习率变化周期
@@ -70,7 +70,10 @@ test_data.append(dataset_3[train_size_3:])
 train_data.append(dataset_4[0:train_size_4])
 test_data.append(dataset_4[train_size_4:])
 
-train = np.concatenate((train_data[0], train_data[1], train_data[2], train_data[3]), axis=0)
+# train = np.concatenate((train_data[0], train_data[1], train_data[2], train_data[3]), axis=0)
+# np.random.shuffle(train)
+
+train = train_data[0]
 np.random.shuffle(train)
 
 # 数据归一化
@@ -80,9 +83,8 @@ train_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=False,
 
 
 # 定义全连接神经网络类
-
 class DNN(nn.Module):
-    def __init__(self, input_dim=5, output_dim=4, hidden_layers=[128]):
+    def __init__(self, input_dim=5, output_dim=4, hidden_layers=[256, 128, 64, 32, 16, 8]):
         super(DNN, self).__init__()
 
         # 定义隐藏层
@@ -93,13 +95,15 @@ class DNN(nn.Module):
             self.hidden_layers.append(nn.ReLU())  # 使用ReLU作为激活函数
 
         # 定义输出层
-        self.output_layer = nn.Linear(hidden_layers[-1], output_dim)
+        self.output1_layer = nn.Linear(hidden_layers[-1], output_dim)
+        self.output2_layer = nn.Linear(output_dim, 1)
 
     def forward(self, x):
         for linear in self.hidden_layers:
             x = linear(x)
-        output = self.output_layer(x)
-        return output
+        out1 = self.output1_layer(x)
+        out2 = self.output2_layer(out1)
+        return out1, out2
 
 
 # 自定义损失函数
@@ -107,60 +111,76 @@ class CustomLoss(nn.Module):
     def __init__(self):
         super(CustomLoss, self).__init__()
 
-    def forward(self, inputs, preds, labels):
+    def forward(self, preds, labels, physical_error):
         # 自定义损失逻辑
-        S = preds[:, 0]
-        k_p = preds[:, 1]
-        k_n = preds[:, 2]
-        theta_e = preds[:, 3]
-        S = S0 * torch.exp(S).cpu()
-        k_p = k_p0 * torch.exp(k_p).cpu()
-        k_n = k_n0 * torch.exp(k_n).cpu()
-        theta_e = theta_e0 * torch.exp(theta_e).cpu()
-        T, I, SoC, Q, C_V0, U = train_invert_scale(scaler, inputs.view(-1, 5).cpu().numpy(), labels.view(-1, 1).cpu().detach().numpy())
-        C_2, C_3, C_4, C_5, C_Hn, C_Hp, C_H2Op = get_con(SoC, C_V0, C_Hp0, C_Hn0, C_H2Op0)
-        e_con = E_con(T, I, Q, C_2, C_3, C_4, C_5)
-        e_act = E_act(T, I, S, k_p, k_n, C_2, C_3, C_4, C_5)
-        e_ohm = E_ohm(theta_e, T, I)
-        e_ocv = E_ocv(T, C_2, C_3, C_4, C_5, C_Hp, C_Hn, C_H2Op)
-        e_cell = e_con + e_act + e_ohm + e_ocv
-        loss = torch.mean((e_cell - U) ** 2)
-        return loss
+        # 预测误差部分
+        pred_error = criterion_mse(preds, labels)
 
+        # 物理约束部分，此处仅为示例，具体物理约束需根据实际问题来设定
+        constraint_error = torch.norm(physical_error, p=2)  # 假设这是一个向量范数表示的物理约束违背程度
+
+        # 总损失函数：预测误差 + 约束惩罚项
+        total_loss = pred_error + lambda_constraint * constraint_error
+
+        return total_loss
+
+
+def physical_constraints(inputs, preds, labels):
+    S = preds[:, 0]
+    k_p = preds[:, 1]
+    k_n = preds[:, 2]
+    theta_e = preds[:, 3]
+    S = S0 * torch.exp(S).cpu()
+    k_p = k_p0 * torch.exp(k_p).cpu()
+    k_n = k_n0 * torch.exp(k_n).cpu()
+    theta_e = theta_e0 * torch.exp(theta_e).cpu()
+    T, I, SoC, Q, C_V0, U = train_invert_scale(scaler, inputs.view(-1, 5).cpu().numpy(),
+                                               labels.view(-1, 1).cpu().detach().numpy())
+    C_2, C_3, C_4, C_5, C_Hn, C_Hp, C_H2Op = get_con(SoC, C_V0, C_Hp0, C_Hn0, C_H2Op0)
+    e_con = E_con(T, I, Q, C_2, C_3, C_4, C_5)
+    e_act = E_act(T, I, S, k_p, k_n, C_2, C_3, C_4, C_5)
+    e_ohm = E_ohm(theta_e, T, I)
+    e_ocv = E_ocv(T, C_2, C_3, C_4, C_5, C_Hp, C_Hn, C_H2Op)
+    e_cell = e_con + e_act + e_ohm + e_ocv
+    return e_cell - U
 
 
 # 创建模型实例
 model = DNN().to(device)
 
-
 # 定义损失函数和优化器
+# 定义损失函数，这里分为两部分：预测误差和物理约束惩罚项
+criterion_mse = nn.MSELoss()  # 预测误差损失函数
+lambda_constraint = 1e-2  # 物理约束惩罚项的权重
 loss_function = CustomLoss()
 loss_function = loss_function.to(device)
+
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)  # Adam 优化器
 scheduler = StepLR(optimizer, step_size=step_size, gamma=gamma)
 
 # 训练模型
 min_epochs = 10
 best_model = None
-min_loss = 1
+min_loss = 0.1
 
-for epoch in tqdm(range(num_epochs)):
+for epoch in range(num_epochs):
     train_loss = []
     for i, data in enumerate(train_loader, 0):
         inputs, labels = data
         inputs, labels = inputs.to(device), labels.to(device)
         inputs = inputs.reshape(batch_size, 5)
 
-       # 梯度清零
+        # 梯度清零
         optimizer.zero_grad()
         inputs = inputs.to(torch.float32)
         labels = labels.to(torch.float32)
 
         # 前向传播
-        preds = model(inputs)
+        preds1, preds2 = model(inputs)
 
         # 计算损失
-        loss = loss_function(inputs, preds, labels)
+        physical_error = physical_constraints(inputs, preds1, labels)
+        loss = loss_function(preds2, labels, physical_error)
         train_loss.append(loss.cpu().item())
 
         # 更新梯度
@@ -169,7 +189,7 @@ for epoch in tqdm(range(num_epochs)):
         # 优化参数
         optimizer.step()  # 更新每个网络的权重
 
-    scheduler.step()
+    scheduler.step()  # 调整学习率
 
     if epoch > min_epochs and loss < min_loss:
         min_val_loss = loss

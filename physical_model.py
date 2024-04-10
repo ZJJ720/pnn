@@ -57,6 +57,7 @@ def E_act(T, I, S, k_p, k_n, C_2, C_3, C_4, C_5):
 
 
 def E_ohm(theta_e, T, I):
+    
     theta_m = (0.5139*L - 0.326)*torch.exp(1268*(1/303 - 1/T))
 
     E_ohm = (2*w_c/theta_c + 2*w_e/theta_e + w_m/theta_m)*I/A_e

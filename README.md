@@ -20,10 +20,10 @@
 - k_n0
 - theta_e0
 
-模型输入量：T(t), I(t)，SoC(t), Q, C_V0
+模型输入量：T(t), I(t), SoC(t), Q, C_V0
 
 ## DNN
 
-模型输入量：T(t), I(t)，SoC(t), Q, C_V0
+模型输入量：T(t), I(t), SoC(t), Q, C_V0
 模型输出量：k_n, k_p, S, theta_e
 模型标签量：U(t)

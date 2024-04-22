@@ -37,16 +37,16 @@ def test_scale(test):
     return scaler, test_scaled
 
 
-def test_invert_scale(scaler: object, X: object, value: object) -> object:
-    new_row = [x for x in X] + [value]
-    array = np.array(new_row)
-    array = array.reshape(1, len(array))
-    inverted = scaler.inverse_transform(array) # 去标准化
-    inverted = torch.Tensor(inverted)
-    return inverted[0, -1]
+# def test_invert_scale(scaler: object, X: object, value: object) -> object:
+#     new_row = [x for x in X] + [value]
+#     array = np.array(new_row)
+#     array = array.reshape(1, len(array))
+#     inverted = scaler.inverse_transform(array) # 去标准化
+#     inverted = torch.Tensor(inverted)
+#     return inverted[0, -1]
 
 
-def train_invert_scale(scaler: object, X: object, value: object) -> object:
+def invert_scale(scaler: object, X: object, value: object) -> object:
     new_row = np.concatenate((X, value), axis=1)
     array = np.array(new_row)
     output = []

@@ -10,7 +10,7 @@ def create_dataset(excel_index):
     df = pd.read_excel(f'data/test{excel_index}.xlsx') # 假设你的数据文件名为 data.xlsx
     # 前 5 列数据读取为 dataX
     dataX = df.iloc[:, [0,1,2,4,5]].values
-    # 第 7 列数据读取为 dataY
+    # 第 6 列数据读取为 dataY
     dataY = df.iloc[:, 6].values
     # 将 dataX, dataY 变量转变为 tensor 类型
     dataX = torch.from_numpy(dataX).float()

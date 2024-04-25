@@ -7,7 +7,7 @@ import numpy as np
 
 def create_dataset(excel_index):
     # 读取 excel 数据
-    df = pd.read_excel(f'data/test_dc_movedault{excel_index}.xlsx')
+    df = pd.read_excel(f'data/test_ch{excel_index}.xlsx')
     # 前 5 列数据读取为 dataX
     dataX = df.iloc[:, [0,1,2,4,5]].values
     # 第 6 列数据读取为 dataY

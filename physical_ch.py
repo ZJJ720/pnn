@@ -37,8 +37,8 @@ def E_con(T, I, Q, C_2, C_3, C_4, C_5):
     E_con_n = torch.empty(len(I))
 
     for i in range(len(I)):
-        E_con_p[i] = -R*T[i]/F*(-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_5[i]))
-        E_con_n[i] = -R*T[i]/F*(-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_2[i]))
+        E_con_p[i] = -R*T[i]/F*(-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_4[i]))
+        E_con_n[i] = -R*T[i]/F*(-I[i]/(1.43*math.pow(10, -4)*F*math.pow(Q[i]/A_e, 0.4)*C_3[i]))
 
 
     E_con = E_con_p + E_con_n

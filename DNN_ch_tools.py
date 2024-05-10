@@ -9,7 +9,7 @@ def create_dataset(excel_index):
     # 读取 excel 数据
     df = pd.read_excel(f'data/test_ch{excel_index}.xlsx')
     # 前 5 列数据读取为 dataX
-    dataX = df.iloc[:, [0,1,2,4,5]].values
+    dataX = df.iloc[:, :6].values
     # 第 6 列数据读取为 dataY
     dataY = df.iloc[:, 6].values
     # 将 dataX, dataY 变量转变为 tensor 类型
@@ -57,7 +57,7 @@ def invert_scale(scaler: object, X: object, value: object) -> object:
         output.append(inverted)
     output = np.array(output)
     output = torch.Tensor(output)
-    return output[:, 0], output[:, 1], output[:, 2], output[:, 3], output[:, 4], output[:, 5]
+    return output[:, 0], output[:, 1], output[:, 2], output[:, 4], output[:, 5], output[:, 6]
 
 
 class DataPrepare(Dataset):
@@ -65,7 +65,7 @@ class DataPrepare(Dataset):
     def __init__(self, train):
         self.len = train.shape[0]
         x_set = train[:, 0:-1]
-        x_set = x_set.reshape(x_set.shape[0], 1, 5)
+        x_set = x_set.reshape(x_set.shape[0], 1, 6)
         # 数据类型转为 torch 变量
         self.x_data = torch.from_numpy(x_set)
         self.y_data = torch.from_numpy(train[:, [-1]])
